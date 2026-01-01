@@ -376,6 +376,3 @@ async function init(): Promise<void> {
 }
 
 init();
-
-// Refresh periodically
-setInterval(refreshState, 5000);
