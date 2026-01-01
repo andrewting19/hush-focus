@@ -1,5 +1,5 @@
-import type { Session, HookPayload, ServerMessage } from "@claude-blocker/shared";
-import { SESSION_TIMEOUT_MS } from "@claude-blocker/shared";
+import type { Session, HookPayload, ServerMessage } from "./types.js";
+import { SESSION_TIMEOUT_MS } from "./types.js";
 
 type StateChangeCallback = (message: ServerMessage) => void;
 

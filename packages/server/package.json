@@ -2,6 +2,15 @@
   "name": "claude-blocker",
   "version": "1.0.0",
   "description": "Block distracting websites unless Claude Code is actively running inference",
+  "author": "Theo Browne",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/t3-content/claude-blocker.git"
+  },
+  "homepage": "https://github.com/t3-content/claude-blocker",
+  "bugs": {
+    "url": "https://github.com/t3-content/claude-blocker/issues"
+  },
   "type": "module",
   "bin": {
     "claude-blocker": "./dist/bin.js"
@@ -17,7 +26,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@claude-blocker/shared": "workspace:*",
     "ws": "^8.18.0"
   },
   "devDependencies": {
@@ -29,9 +37,14 @@
   },
   "keywords": [
     "claude",
+    "claude-code",
     "productivity",
     "blocker",
-    "focus"
+    "focus",
+    "distraction"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }

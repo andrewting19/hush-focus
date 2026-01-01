@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "http";
 import { WebSocketServer, WebSocket } from "ws";
-import type { HookPayload, ClientMessage } from "@claude-blocker/shared";
-import { DEFAULT_PORT } from "@claude-blocker/shared";
+import type { HookPayload, ClientMessage } from "./types.js";
+import { DEFAULT_PORT } from "./types.js";
 import { state } from "./state.js";
 
 function parseBody(req: IncomingMessage): Promise<string> {
