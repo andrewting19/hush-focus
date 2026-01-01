@@ -53,6 +53,25 @@ let bypassCountdown: ReturnType<typeof setInterval> | null = null;
 let currentDomains: string[] = [];
 let currentSessions: SessionInfo[] = [];
 
+// Check if sessions have actually changed (to avoid unnecessary re-renders)
+function sessionsChanged(oldSessions: SessionInfo[], newSessions: SessionInfo[]): boolean {
+  if (oldSessions.length !== newSessions.length) return true;
+  for (let i = 0; i < oldSessions.length; i++) {
+    const oldS = oldSessions[i];
+    const newS = newSessions[i];
+    if (
+      oldS.id !== newS.id ||
+      oldS.status !== newS.status ||
+      oldS.cwd !== newS.cwd ||
+      oldS.gitRepo !== newS.gitRepo ||
+      oldS.lastPrompt !== newS.lastPrompt
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // Load domains from storage
 async function loadDomains(): Promise<string[]> {
   return new Promise((resolve) => {
@@ -266,10 +285,12 @@ function updateUI(state: ExtensionState): void {
     blockStatusEl.style.color = "#7A9E7E";
   }
 
-  // Update sessions list
+  // Update sessions list only if changed
   if (state.sessions && Array.isArray(state.sessions)) {
-    currentSessions = state.sessions;
-    renderSessions();
+    if (sessionsChanged(currentSessions, state.sessions)) {
+      currentSessions = state.sessions;
+      renderSessions();
+    }
   }
 }
 
