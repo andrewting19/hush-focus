@@ -1,8 +1,8 @@
 export {};
 
-const MODAL_ID = "claude-blocker-modal";
-const TOAST_ID = "claude-blocker-toast";
-const FINISH_TOAST_ID = "claude-blocker-finish-toast";
+const MODAL_ID = "hush-sanctuary-modal";
+const TOAST_ID = "hush-toast";
+const FINISH_TOAST_ID = "hush-finish-toast";
 const DEFAULT_DOMAINS = ["x.com", "youtube.com"];
 
 // ============================================
@@ -18,9 +18,9 @@ function getAudioContext(): AudioContext {
   return audioContext;
 }
 
-// Play a pleasant notification sound
-// type: "block" = gentle descending chime (site blocked)
-// type: "finish" = soft ascending chime (work complete)
+// Play refined notification sounds
+// type: "block" = gentle low hum (entering sanctuary)
+// type: "finish" = soft crystalline chime (work complete)
 function playSound(type: "block" | "finish"): void {
   try {
     const ctx = getAudioContext();
@@ -29,17 +29,17 @@ function playSound(type: "block" | "finish"): void {
     // Create gain node for volume control
     const masterGain = ctx.createGain();
     masterGain.connect(ctx.destination);
-    masterGain.gain.value = 0.15; // Keep it subtle
+    masterGain.gain.value = 0.12; // Keep it subtle and refined
 
     if (type === "block") {
-      // Gentle descending two-note chime (like a soft doorbell)
-      playTone(ctx, masterGain, 880, now, 0.15); // A5
-      playTone(ctx, masterGain, 659, now + 0.12, 0.2); // E5
+      // Warm, grounding two-note descent
+      playTone(ctx, masterGain, 392, now, 0.2); // G4
+      playTone(ctx, masterGain, 294, now + 0.15, 0.25); // D4
     } else {
-      // Pleasant ascending chime (positive/complete feeling)
-      playTone(ctx, masterGain, 523, now, 0.12); // C5
-      playTone(ctx, masterGain, 659, now + 0.1, 0.12); // E5
-      playTone(ctx, masterGain, 784, now + 0.2, 0.2); // G5
+      // Gentle ascending resolution
+      playTone(ctx, masterGain, 523, now, 0.15); // C5
+      playTone(ctx, masterGain, 659, now + 0.12, 0.15); // E5
+      playTone(ctx, masterGain, 784, now + 0.24, 0.22); // G5
     }
   } catch {
     // Audio not available, fail silently
@@ -62,9 +62,9 @@ function playTone(
   oscillator.type = "sine";
   oscillator.frequency.value = frequency;
 
-  // Soft attack and release for a gentle sound
+  // Soft attack and natural release
   gainNode.gain.setValueAtTime(0, startTime);
-  gainNode.gain.linearRampToValueAtTime(1, startTime + 0.02);
+  gainNode.gain.linearRampToValueAtTime(0.8, startTime + 0.03);
   gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
 
   oscillator.start(startTime);
@@ -86,7 +86,7 @@ interface PublicState {
 // Track current state so we can re-render if modal gets removed
 let lastKnownState: PublicState | null = null;
 let shouldBeBlocked = false;
-let wasBlocked = false; // Track previous blocked state for sound
+let wasBlocked = false;
 let blockedDomains: string[] = [];
 let toastDismissed = false;
 let finishToastDismissed = false;
@@ -117,33 +117,274 @@ function getShadow(): ShadowRoot | null {
   return getModal()?.shadowRoot ?? null;
 }
 
+// Inject Google Fonts for the overlay
+function injectFonts(): void {
+  if (document.getElementById("hush-fonts")) return;
+
+  const link = document.createElement("link");
+  link.id = "hush-fonts";
+  link.rel = "stylesheet";
+  link.href = "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@400;500&display=swap";
+  document.head.appendChild(link);
+}
+
 function createModal(): void {
   if (getModal()) return;
+
+  injectFonts();
 
   const container = document.createElement("div");
   container.id = MODAL_ID;
   const shadow = container.attachShadow({ mode: "open" });
 
-  // Use inline styles with bulletproof Arial font (won't change when page loads custom fonts)
   shadow.innerHTML = `
-    <div style="all:initial;position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;z-index:2147483647;-webkit-font-smoothing:antialiased;">
-      <div style="all:initial;background:#1a1a1a;border:1px solid #333;border-radius:16px;padding:40px;max-width:480px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;">
-        <svg style="width:64px;height:64px;margin-bottom:24px;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="3" y="11" width="18" height="11" rx="2" fill="#FFD700" stroke="#B8860B" stroke-width="1"/>
-          <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="#888" stroke-width="2" fill="none"/>
-        </svg>
-        <div style="color:#fff;font-size:24px;font-weight:bold;margin:0 0 16px;line-height:1.2;">Time to Work</div>
-        <div id="message" style="color:#888;font-size:16px;line-height:1.5;margin:0 0 24px;font-weight:normal;">Loading...</div>
-        <div style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;background:#2a2a2a;border-radius:20px;font-size:14px;color:#666;line-height:1;">
-          <span id="dot" style="width:8px;height:8px;border-radius:50%;background:#666;flex-shrink:0;"></span>
-          <span id="status" style="color:#666;font-size:14px;font-family:Arial,Helvetica,sans-serif;">...</span>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@400;500&display=swap');
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      .sanctuary {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100vw;
+        height: 100vh;
+        background: #0A0908;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'DM Sans', -apple-system, sans-serif;
+        z-index: 2147483647;
+        -webkit-font-smoothing: antialiased;
+        overflow: hidden;
+      }
+
+      /* Animated gradient background */
+      .sanctuary::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background:
+          radial-gradient(ellipse 80% 50% at 50% 0%, rgba(196, 93, 62, 0.08) 0%, transparent 50%),
+          radial-gradient(ellipse 60% 40% at 80% 100%, rgba(122, 158, 126, 0.05) 0%, transparent 50%),
+          radial-gradient(ellipse 50% 50% at 20% 80%, rgba(107, 143, 173, 0.04) 0%, transparent 50%);
+        animation: ambientShift 20s ease-in-out infinite;
+      }
+
+      @keyframes ambientShift {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+      }
+
+      /* Grain texture */
+      .sanctuary::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        opacity: 0.025;
+        pointer-events: none;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+      }
+
+      .content {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+        padding: 48px;
+        max-width: 420px;
+        animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .logo-container {
+        margin-bottom: 40px;
+        animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+      }
+
+      .logo-ring {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 24px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #1F1D1A 0%, #171613 100%);
+        border: 2px solid rgba(245, 240, 232, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow:
+          0 0 60px rgba(196, 93, 62, 0.15),
+          inset 0 0 30px rgba(0, 0, 0, 0.3);
+      }
+
+      .logo-icon {
+        width: 40px;
+        height: 40px;
+        color: #C45D3E;
+        opacity: 0.9;
+      }
+
+      .brand {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 28px;
+        font-weight: 500;
+        letter-spacing: 6px;
+        color: #F5F0E8;
+        margin-bottom: 8px;
+      }
+
+      .tagline {
+        font-size: 11px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: #7A746A;
+      }
+
+      .message-container {
+        margin-bottom: 40px;
+        animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+      }
+
+      .headline {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 32px;
+        font-weight: 400;
+        font-style: italic;
+        color: #F5F0E8;
+        margin-bottom: 16px;
+        line-height: 1.3;
+      }
+
+      .subtext {
+        font-size: 14px;
+        color: #7A746A;
+        line-height: 1.6;
+        max-width: 280px;
+        margin: 0 auto;
+      }
+
+      .status-container {
+        animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 20px;
+        background: rgba(31, 29, 26, 0.8);
+        border: 1px solid rgba(245, 240, 232, 0.08);
+        border-radius: 100px;
+        backdrop-filter: blur(10px);
+      }
+
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #4A4640;
+        flex-shrink: 0;
+      }
+
+      .status-dot.connected {
+        background: #7A9E7E;
+        box-shadow: 0 0 12px rgba(122, 158, 126, 0.5);
+      }
+
+      .status-dot.offline {
+        background: #C45D5D;
+        box-shadow: 0 0 12px rgba(196, 93, 93, 0.5);
+      }
+
+      .status-dot.working {
+        background: #D4A855;
+        box-shadow: 0 0 12px rgba(212, 168, 85, 0.5);
+        animation: breathe 2s ease-in-out infinite;
+      }
+
+      @keyframes breathe {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.6; transform: scale(1.1); }
+      }
+
+      .status-text {
+        font-size: 12px;
+        font-weight: 500;
+        color: #B8B0A4;
+        letter-spacing: 0.5px;
+      }
+
+      .hint {
+        margin-top: 32px;
+        font-size: 12px;
+        color: #4A4640;
+        animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
+      }
+
+      .hint code {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 6px 12px;
+        background: rgba(31, 29, 26, 0.6);
+        border: 1px solid rgba(245, 240, 232, 0.06);
+        border-radius: 6px;
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+        font-size: 11px;
+        color: #7A746A;
+      }
+    </style>
+
+    <div class="sanctuary">
+      <div class="content">
+        <div class="logo-container">
+          <div class="logo-ring">
+            <svg class="logo-icon" viewBox="0 0 32 32" fill="none">
+              <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="1.5" opacity="0.3"/>
+              <path d="M12 20V12C12 12 14 10 16 10C18 10 20 12 20 12V20C20 20 18 22 16 22C14 22 12 20 12 20Z" fill="currentColor" opacity="0.8"/>
+              <line x1="8" y1="8" x2="24" y2="24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="brand">HUSH</div>
+          <div class="tagline">Focus Sanctuary</div>
         </div>
-        <div id="hint" style="margin-top:24px;font-size:13px;color:#555;line-height:1.4;font-family:Arial,Helvetica,sans-serif;"></div>
+
+        <div class="message-container">
+          <div class="headline" id="headline">Finding stillness...</div>
+          <div class="subtext" id="subtext">Preparing your focus environment</div>
+        </div>
+
+        <div class="status-container">
+          <div class="status-pill">
+            <span class="status-dot" id="status-dot"></span>
+            <span class="status-text" id="status-text">Connecting</span>
+          </div>
+          <div class="hint" id="hint"></div>
+        </div>
       </div>
     </div>
   `;
 
-  // Mount to documentElement (html) instead of body - more resilient to React hydration
   document.documentElement.appendChild(container);
 }
 
@@ -163,10 +404,72 @@ function showToast(): void {
   const shadow = container.attachShadow({ mode: "open" });
 
   shadow.innerHTML = `
-    <div style="all:initial;position:fixed;bottom:24px;right:24px;background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:16px 20px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#fff;z-index:2147483647;display:flex;align-items:center;gap:12px;box-shadow:0 4px 12px rgba(0,0,0,0.3);-webkit-font-smoothing:antialiased;">
-      <span style="font-size:18px;">💬</span>
-      <span>Claude has a question for you!</span>
-      <button id="dismiss" style="all:initial;margin-left:8px;padding:4px 8px;background:#333;border:none;border-radius:6px;color:#888;font-family:Arial,Helvetica,sans-serif;font-size:12px;cursor:pointer;">Dismiss</button>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&display=swap');
+
+      .toast {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: #171613;
+        border: 1px solid rgba(107, 143, 173, 0.3);
+        border-radius: 12px;
+        padding: 16px 20px;
+        font-family: 'DM Sans', -apple-system, sans-serif;
+        font-size: 14px;
+        color: #F5F0E8;
+        z-index: 2147483647;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px) translateX(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) translateX(0);
+        }
+      }
+
+      .icon {
+        font-size: 18px;
+        color: #6B8FAD;
+      }
+
+      .text {
+        color: #B8B0A4;
+      }
+
+      .dismiss {
+        margin-left: 8px;
+        padding: 4px 10px;
+        background: rgba(245, 240, 232, 0.06);
+        border: none;
+        border-radius: 6px;
+        color: #7A746A;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 11px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+
+      .dismiss:hover {
+        background: rgba(245, 240, 232, 0.1);
+        color: #B8B0A4;
+      }
+    </style>
+
+    <div class="toast">
+      <span class="icon">💭</span>
+      <span class="text">Claude has a question for you</span>
+      <button class="dismiss" id="dismiss">Dismiss</button>
     </div>
   `;
 
@@ -196,21 +499,128 @@ function showFinishToast(prompt?: string): void {
 
   // Truncate prompt if too long
   const displayPrompt = prompt
-    ? prompt.length > 60
-      ? prompt.slice(0, 60) + "..."
+    ? prompt.length > 50
+      ? prompt.slice(0, 50) + "…"
       : prompt
     : null;
 
   shadow.innerHTML = `
-    <div style="all:initial;position:fixed;bottom:24px;right:24px;background:#1a1a1a;border:1px solid #22c55e33;border-radius:12px;padding:16px 20px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#fff;z-index:2147483647;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,0.4);-webkit-font-smoothing:antialiased;">
-      <div style="display:flex;align-items:flex-start;gap:12px;">
-        <span style="font-size:20px;line-height:1;">✓</span>
-        <div style="flex:1;min-width:0;">
-          <div style="font-weight:600;color:#22c55e;margin-bottom:4px;">Claude finished</div>
-          ${displayPrompt ? `<div style="font-size:12px;color:#888;line-height:1.4;word-break:break-word;">${displayPrompt}</div>` : ""}
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=Playfair+Display:ital@1&display=swap');
+
+      .toast {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: #171613;
+        border: 1px solid rgba(122, 158, 126, 0.3);
+        border-radius: 14px;
+        padding: 18px 22px;
+        font-family: 'DM Sans', -apple-system, sans-serif;
+        color: #F5F0E8;
+        z-index: 2147483647;
+        max-width: 300px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px) translateX(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) translateX(0);
+        }
+      }
+
+      .header {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .icon {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: rgba(122, 158, 126, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .icon svg {
+        width: 12px;
+        height: 12px;
+        color: #7A9E7E;
+      }
+
+      .body {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .title {
+        font-weight: 500;
+        font-size: 14px;
+        color: #7A9E7E;
+        margin-bottom: 4px;
+      }
+
+      .prompt {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 12px;
+        font-style: italic;
+        color: #7A746A;
+        line-height: 1.4;
+        word-break: break-word;
+      }
+
+      .dismiss {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 24px;
+        height: 24px;
+        background: transparent;
+        border: none;
+        color: #4A4640;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        transition: all 0.15s;
+      }
+
+      .dismiss:hover {
+        background: rgba(245, 240, 232, 0.06);
+        color: #7A746A;
+      }
+    </style>
+
+    <div class="toast">
+      <div class="header">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="20,6 9,17 4,12"/>
+          </svg>
         </div>
-        <button id="dismiss" style="all:initial;padding:4px;background:transparent;border:none;color:#666;cursor:pointer;font-size:18px;line-height:1;">×</button>
+        <div class="body">
+          <div class="title">Complete</div>
+          ${displayPrompt ? `<div class="prompt">"${displayPrompt}"</div>` : ""}
+        </div>
       </div>
+      <button class="dismiss" id="dismiss">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
     </div>
   `;
 
@@ -236,7 +646,6 @@ function removeFinishToast(): void {
 function setupMutationObserver(): void {
   const observer = new MutationObserver(() => {
     if (shouldBeBlocked && !getModal()) {
-      // Modal was removed but should exist - re-create it
       createModal();
       if (lastKnownState) {
         renderState(lastKnownState);
@@ -250,40 +659,39 @@ function setupMutationObserver(): void {
   });
 }
 
-function setDotColor(dot: HTMLElement, color: "green" | "red" | "gray"): void {
-  const colors = {
-    green: "background:#22c55e;box-shadow:0 0 8px #22c55e;",
-    red: "background:#ef4444;box-shadow:0 0 8px #ef4444;",
-    gray: "background:#666;box-shadow:none;",
-  };
-  dot.style.cssText = `width:8px;height:8px;border-radius:50%;flex-shrink:0;${colors[color]}`;
+function setDotClass(dot: HTMLElement, state: "connected" | "offline" | "working"): void {
+  dot.className = `status-dot ${state}`;
 }
 
 function renderState(state: PublicState): void {
   const shadow = getShadow();
   if (!shadow) return;
 
-  const message = shadow.getElementById("message");
-  const dot = shadow.getElementById("dot");
-  const status = shadow.getElementById("status");
+  const headline = shadow.getElementById("headline");
+  const subtext = shadow.getElementById("subtext");
+  const dot = shadow.getElementById("status-dot");
+  const statusText = shadow.getElementById("status-text");
   const hint = shadow.getElementById("hint");
-  if (!message || !dot || !status || !hint) return;
+  if (!headline || !subtext || !dot || !statusText || !hint) return;
 
   if (!state.serverConnected) {
-    message.textContent = "Server offline. Start the blocker server to continue.";
-    setDotColor(dot, "red");
-    status.textContent = "Server Offline";
-    hint.innerHTML = `Run <span style="background:#2a2a2a;padding:2px 8px;border-radius:4px;font-family:ui-monospace,monospace;font-size:12px;">npx claude-blocker</span> to start`;
+    headline.textContent = "Sanctuary Offline";
+    subtext.textContent = "The focus server needs to be running to protect your attention.";
+    setDotClass(dot, "offline");
+    statusText.textContent = "Server Disconnected";
+    hint.innerHTML = `<code>npx claude-blocker</code>`;
   } else if (state.sessionCount === 0) {
-    message.textContent = "No Claude Code sessions detected.";
-    setDotColor(dot, "green");
-    status.textContent = "Waiting for Claude Code";
-    hint.textContent = "Open a terminal and start Claude Code";
+    headline.textContent = "Awaiting Focus";
+    subtext.textContent = "Start a Claude Code session to begin your deep work.";
+    setDotClass(dot, "connected");
+    statusText.textContent = "No Active Sessions";
+    hint.textContent = "";
   } else {
-    message.textContent = "Your job finished!";
-    setDotColor(dot, "green");
-    status.textContent = `${state.sessionCount} session${state.sessionCount > 1 ? "s" : ""} idle`;
-    hint.textContent = "Type a prompt in Claude Code to unblock";
+    headline.textContent = "Return to Work";
+    subtext.textContent = "Your task is complete. Send a new prompt to continue.";
+    setDotClass(dot, "connected");
+    statusText.textContent = `${state.sessionCount} session${state.sessionCount > 1 ? "s" : ""} idle`;
+    hint.textContent = "";
   }
 }
 
@@ -291,16 +699,18 @@ function renderError(): void {
   const shadow = getShadow();
   if (!shadow) return;
 
-  const message = shadow.getElementById("message");
-  const dot = shadow.getElementById("dot");
-  const status = shadow.getElementById("status");
+  const headline = shadow.getElementById("headline");
+  const subtext = shadow.getElementById("subtext");
+  const dot = shadow.getElementById("status-dot");
+  const statusText = shadow.getElementById("status-text");
   const hint = shadow.getElementById("hint");
-  if (!message || !dot || !status || !hint) return;
+  if (!headline || !subtext || !dot || !statusText || !hint) return;
 
-  message.textContent = "Cannot connect to extension.";
-  setDotColor(dot, "red");
-  status.textContent = "Extension Error";
-  hint.textContent = "Try reloading the extension";
+  headline.textContent = "Connection Lost";
+  subtext.textContent = "Unable to communicate with the extension.";
+  setDotClass(dot, "offline");
+  statusText.textContent = "Extension Error";
+  hint.textContent = "Try reloading the page";
 }
 
 // Handle state updates from service worker
@@ -311,7 +721,7 @@ function handleState(state: PublicState): void {
   if (state.finishedSessionId) {
     showFinishToast(state.finishedPrompt);
     playSound("finish");
-    finishToastDismissed = false; // Reset for next finish
+    finishToastDismissed = false;
   }
 
   if (!isBlockedDomain()) {
@@ -326,7 +736,7 @@ function handleState(state: PublicState): void {
   if (state.waitingForInput > 0) {
     showToast();
   } else {
-    toastDismissed = false; // Reset so next question can show toast
+    toastDismissed = false;
     removeToast();
   }
 
@@ -351,7 +761,6 @@ function handleState(state: PublicState): void {
 function requestState(): void {
   chrome.runtime.sendMessage({ type: "GET_STATE" }, (response) => {
     if (chrome.runtime.lastError || !response) {
-      // Service worker not ready, retry
       setTimeout(requestState, 500);
       createModal();
       renderError();
@@ -368,7 +777,6 @@ chrome.runtime.onMessage.addListener((message) => {
   }
   if (message.type === "DOMAINS_UPDATED") {
     blockedDomains = message.domains;
-    // Re-evaluate if we should be blocked
     if (lastKnownState) {
       handleState(lastKnownState);
     }

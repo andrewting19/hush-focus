@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Claude Blocker",
-  "version": "0.0.3",
-  "description": "Block distracting websites unless Claude Code is actively running inference",
+  "name": "HUSH — Focus Sanctuary",
+  "version": "0.1.0",
+  "description": "Your focus sanctuary. Silence distracting websites while Claude Code works.",
   "homepage_url": "https://github.com/t3-content/claude-blocker",
   "minimum_chrome_version": "116",
   "icons": {
@@ -27,7 +27,7 @@
     "default_path": "sidebar.html"
   },
   "action": {
-    "default_title": "Claude Blocker",
+    "default_title": "HUSH",
     "default_icon": {
       "16": "icon-16.png",
       "32": "icon-32.png",

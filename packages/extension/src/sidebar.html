@@ -3,61 +3,90 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Claude Blocker</title>
+    <title>HUSH</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="sidebar.css" />
   </head>
   <body>
+    <!-- Grain overlay -->
+    <div class="grain"></div>
+
     <div class="container">
       <!-- Header -->
       <header>
         <div class="brand">
-          <svg class="logo" width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <rect x="3" y="11" width="18" height="11" rx="2" fill="#FFD700" stroke="#B8860B" stroke-width="0.5"/>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="#666" stroke-width="1.5" fill="none"/>
-          </svg>
-          <span class="title">Claude Blocker</span>
-        </div>
-        <div class="header-actions">
-          <div class="status-pill" id="status-pill">
-            <span class="status-dot" id="status-dot"></span>
-            <span id="status-text">Connecting</span>
-          </div>
-          <button class="settings-btn" id="settings-btn" title="Settings">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          <div class="logo-mark">
+            <svg class="logo" width="32" height="32" viewBox="0 0 32 32" fill="none">
+              <!-- Stylized sound waves being silenced -->
+              <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="1.5" opacity="0.3"/>
+              <path d="M12 20V12C12 12 14 10 16 10C18 10 20 12 20 12V20C20 20 18 22 16 22C14 22 12 20 12 20Z" fill="currentColor" opacity="0.8"/>
+              <line x1="8" y1="8" x2="24" y2="24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
-          </button>
+          </div>
+          <div class="brand-text">
+            <span class="brand-name">HUSH</span>
+            <span class="brand-tagline">focus sanctuary</span>
+          </div>
         </div>
+        <button class="settings-btn" id="settings-btn" title="Settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+          </svg>
+        </button>
       </header>
 
-      <!-- Stats -->
-      <section class="stats">
-        <div class="stat">
-          <span class="stat-value" id="sessions">0</span>
-          <span class="stat-label">Sessions</span>
+      <!-- Status Hero -->
+      <section class="status-hero" id="status-hero">
+        <div class="status-indicator" id="status-indicator">
+          <div class="status-ring">
+            <div class="status-core" id="status-core"></div>
+          </div>
         </div>
-        <div class="stat">
-          <span class="stat-value" id="working">0</span>
-          <span class="stat-label">Working</span>
+        <div class="status-label" id="status-label">Connecting</div>
+        <div class="status-detail" id="status-detail">Establishing connection...</div>
+      </section>
+
+      <!-- Metrics Strip -->
+      <section class="metrics">
+        <div class="metric">
+          <span class="metric-value" id="sessions">0</span>
+          <span class="metric-label">Sessions</span>
         </div>
-        <div class="stat">
-          <span class="stat-value" id="block-status">-</span>
-          <span class="stat-label">Status</span>
+        <div class="metric-divider"></div>
+        <div class="metric">
+          <span class="metric-value" id="working">0</span>
+          <span class="metric-label">Active</span>
+        </div>
+        <div class="metric-divider"></div>
+        <div class="metric">
+          <span class="metric-value" id="block-status">—</span>
+          <span class="metric-label">Gates</span>
         </div>
       </section>
 
       <!-- Sessions List -->
       <section class="sessions-section">
-        <div class="section-header">
-          <h2>Sessions</h2>
+        <div class="section-title">
+          <span class="section-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <path d="M9 9h6M9 13h6M9 17h4"/>
+            </svg>
+          </span>
+          <h2>Active Sessions</h2>
         </div>
         <ul class="sessions-list" id="sessions-list"></ul>
       </section>
 
       <!-- Footer -->
       <footer>
-        <p>Block distractions when Claude is idle</p>
+        <p>Silence the noise. Find your flow.</p>
       </footer>
     </div>
 
@@ -65,9 +94,9 @@
     <div class="modal-overlay" id="modal-overlay">
       <div class="modal">
         <div class="modal-header">
-          <h2>Settings</h2>
+          <h2>Preferences</h2>
           <button class="modal-close" id="modal-close">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <line x1="18" y1="6" x2="6" y2="18"/>
               <line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
@@ -76,21 +105,32 @@
 
         <!-- Blocked Sites -->
         <div class="modal-section">
-          <div class="section-header">
-            <h3>Blocked Sites</h3>
+          <div class="section-title">
+            <span class="section-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+              </svg>
+            </span>
+            <h3>Silenced Domains</h3>
             <span class="badge" id="site-count">0</span>
           </div>
-          <p class="section-desc">Blocked when Claude is idle</p>
+          <p class="section-desc">These sites go quiet when you're not working</p>
 
           <form class="add-form" id="add-form">
             <input
               type="text"
               id="domain-input"
-              placeholder="example.com"
+              placeholder="enter domain..."
               spellcheck="false"
               autocomplete="off"
             />
-            <button type="submit" class="add-btn">Add</button>
+            <button type="submit" class="add-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+            </button>
           </form>
 
           <ul class="domain-list" id="domain-list"></ul>
@@ -98,17 +138,24 @@
 
         <!-- Bypass -->
         <div class="modal-section">
-          <div class="section-header">
-            <h3>Emergency Bypass</h3>
+          <div class="section-title">
+            <span class="section-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12,6 12,12 16,14"/>
+              </svg>
+            </span>
+            <h3>Emergency Exit</h3>
           </div>
-          <p class="section-desc">5 minutes unblocked, once per day</p>
+          <p class="section-desc">5 minutes of freedom, once per day</p>
 
           <button class="bypass-btn" id="bypass-btn" disabled>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/>
-              <polyline points="12,6 12,12 16,14"/>
-            </svg>
-            <span id="bypass-text">Activate Bypass</span>
+            <span class="bypass-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
+            </span>
+            <span id="bypass-text">Activate</span>
           </button>
           <p class="bypass-status" id="bypass-status">Loading...</p>
         </div>

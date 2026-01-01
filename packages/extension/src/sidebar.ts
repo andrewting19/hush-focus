@@ -26,9 +26,12 @@ interface BypassStatus {
   bypassUntil: number | null;
 }
 
-// Elements
-const statusDot = document.getElementById("status-dot") as HTMLElement;
-const statusText = document.getElementById("status-text") as HTMLElement;
+// Elements - Status Hero
+const statusHero = document.getElementById("status-hero") as HTMLElement;
+const statusLabel = document.getElementById("status-label") as HTMLElement;
+const statusDetail = document.getElementById("status-detail") as HTMLElement;
+
+// Elements - Metrics
 const sessionsEl = document.getElementById("sessions") as HTMLElement;
 const workingEl = document.getElementById("working") as HTMLElement;
 const blockStatusEl = document.getElementById("block-status") as HTMLElement;
@@ -173,10 +176,10 @@ function getSessionName(session: SessionInfo): string {
 }
 
 // Truncate prompt for display
-function truncatePrompt(prompt: string | undefined, maxLength = 60): string {
+function truncatePrompt(prompt: string | undefined, maxLength = 50): string {
   if (!prompt) return "";
   if (prompt.length <= maxLength) return prompt;
-  return prompt.substring(0, maxLength) + "...";
+  return prompt.substring(0, maxLength) + "…";
 }
 
 // Render sessions list
@@ -187,12 +190,12 @@ function renderSessions(): void {
     const empty = document.createElement("li");
     empty.className = "empty-sessions";
     empty.innerHTML = `
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <rect x="3" y="3" width="18" height="18" rx="2"/>
-        <path d="M9 9h6M9 13h6M9 17h4"/>
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M8 12h8M12 8v8" opacity="0.5"/>
       </svg>
       <p>No active sessions</p>
-      <span>Start Claude Code to see sessions here</span>
+      <span>Start Claude Code to begin</span>
     `;
     sessionsList.appendChild(empty);
     return;
@@ -221,35 +224,46 @@ function renderSessions(): void {
 
 // Update UI with extension state
 function updateUI(state: ExtensionState): void {
+  // Reset status hero classes
+  statusHero.className = "status-hero";
+
   // Status indicator
   if (!state.serverConnected) {
-    statusDot.className = "status-dot disconnected";
-    statusText.textContent = "Offline";
+    statusHero.classList.add("offline");
+    statusLabel.textContent = "Offline";
+    statusDetail.textContent = "Server not connected";
   } else if (state.working > 0) {
-    statusDot.className = "status-dot working";
-    statusText.textContent = "Working";
+    statusHero.classList.add("working");
+    statusLabel.textContent = "Working";
+    statusDetail.textContent = `Claude is actively processing`;
   } else if (state.waitingForInput > 0) {
-    statusDot.className = "status-dot connected";
-    statusText.textContent = "Waiting";
+    statusHero.classList.add("waiting");
+    statusLabel.textContent = "Waiting";
+    statusDetail.textContent = "Claude has a question for you";
+  } else if (state.sessionCount > 0) {
+    statusHero.classList.add("connected");
+    statusLabel.textContent = "Ready";
+    statusDetail.textContent = `${state.sessionCount} session${state.sessionCount > 1 ? "s" : ""} connected`;
   } else {
-    statusDot.className = "status-dot connected";
-    statusText.textContent = "Connected";
+    statusHero.classList.add("connected");
+    statusLabel.textContent = "Quiet";
+    statusDetail.textContent = "No active sessions";
   }
 
-  // Stats
+  // Metrics
   sessionsEl.textContent = String(state.sessionCount ?? state.sessions?.length ?? 0);
   workingEl.textContent = String(state.working);
 
-  // Block status
+  // Block status with semantic labels
   if (state.bypassActive) {
-    blockStatusEl.textContent = "Bypass";
-    blockStatusEl.style.color = "var(--accent-amber)";
+    blockStatusEl.textContent = "Open";
+    blockStatusEl.style.color = "#D4A855";
   } else if (state.blocked) {
-    blockStatusEl.textContent = "Blocked";
-    blockStatusEl.style.color = "var(--accent-red)";
+    blockStatusEl.textContent = "Shut";
+    blockStatusEl.style.color = "#C45D5D";
   } else {
     blockStatusEl.textContent = "Open";
-    blockStatusEl.style.color = "var(--accent-green)";
+    blockStatusEl.style.color = "#7A9E7E";
   }
 
   // Update sessions list
@@ -274,7 +288,7 @@ function updateBypassButton(status: BypassStatus): void {
       const remaining = Math.max(0, Math.ceil((status.bypassUntil! - Date.now()) / 1000));
       const minutes = Math.floor(remaining / 60);
       const seconds = remaining % 60;
-      bypassText.textContent = `Active · ${minutes}:${seconds.toString().padStart(2, "0")}`;
+      bypassText.textContent = `${minutes}:${seconds.toString().padStart(2, "0")} remaining`;
 
       if (remaining <= 0) {
         if (bypassCountdown) clearInterval(bypassCountdown);
@@ -284,7 +298,7 @@ function updateBypassButton(status: BypassStatus): void {
 
     updateCountdown();
     bypassCountdown = setInterval(updateCountdown, 1000);
-    bypassStatus.textContent = "Bypass will expire soon";
+    bypassStatus.textContent = "Bypass active";
   } else if (status.usedToday) {
     bypassBtn.disabled = true;
     bypassBtn.classList.remove("active");
@@ -293,8 +307,8 @@ function updateBypassButton(status: BypassStatus): void {
   } else {
     bypassBtn.disabled = false;
     bypassBtn.classList.remove("active");
-    bypassText.textContent = "Activate Bypass";
-    bypassStatus.textContent = "5 min unblocked, once per day";
+    bypassText.textContent = "Activate";
+    bypassStatus.textContent = "5 minutes of freedom, once daily";
   }
 }
 

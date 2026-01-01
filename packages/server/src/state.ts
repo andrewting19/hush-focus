@@ -162,8 +162,8 @@ class SessionState {
         gitRepo,
       });
       console.log("Claude Code session connected");
-    } else if (gitRepo && !this.sessions.get(sessionId)!.gitRepo) {
-      // Update gitRepo if we didn't have it before
+    } else if (gitRepo) {
+      // Always update gitRepo with latest value
       this.sessions.get(sessionId)!.gitRepo = gitRepo;
     }
   }
