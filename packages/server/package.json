@@ -1,6 +1,6 @@
 {
   "name": "claude-blocker",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Block distracting websites unless Claude Code is actively running inference",
   "author": "Theo Browne",
   "repository": {
@@ -26,6 +26,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@claude-blocker/shared": "workspace:*",
     "ws": "^8.18.0"
   },
   "devDependencies": {

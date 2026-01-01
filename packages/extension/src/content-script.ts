@@ -2,23 +2,94 @@ export {};
 
 const MODAL_ID = "claude-blocker-modal";
 const TOAST_ID = "claude-blocker-toast";
+const FINISH_TOAST_ID = "claude-blocker-finish-toast";
 const DEFAULT_DOMAINS = ["x.com", "youtube.com"];
+
+// ============================================
+// Sound utilities using Web Audio API
+// ============================================
+
+let audioContext: AudioContext | null = null;
+
+function getAudioContext(): AudioContext {
+  if (!audioContext) {
+    audioContext = new AudioContext();
+  }
+  return audioContext;
+}
+
+// Play a pleasant notification sound
+// type: "block" = gentle descending chime (site blocked)
+// type: "finish" = soft ascending chime (work complete)
+function playSound(type: "block" | "finish"): void {
+  try {
+    const ctx = getAudioContext();
+    const now = ctx.currentTime;
+
+    // Create gain node for volume control
+    const masterGain = ctx.createGain();
+    masterGain.connect(ctx.destination);
+    masterGain.gain.value = 0.15; // Keep it subtle
+
+    if (type === "block") {
+      // Gentle descending two-note chime (like a soft doorbell)
+      playTone(ctx, masterGain, 880, now, 0.15); // A5
+      playTone(ctx, masterGain, 659, now + 0.12, 0.2); // E5
+    } else {
+      // Pleasant ascending chime (positive/complete feeling)
+      playTone(ctx, masterGain, 523, now, 0.12); // C5
+      playTone(ctx, masterGain, 659, now + 0.1, 0.12); // E5
+      playTone(ctx, masterGain, 784, now + 0.2, 0.2); // G5
+    }
+  } catch {
+    // Audio not available, fail silently
+  }
+}
+
+function playTone(
+  ctx: AudioContext,
+  destination: AudioNode,
+  frequency: number,
+  startTime: number,
+  duration: number
+): void {
+  const oscillator = ctx.createOscillator();
+  const gainNode = ctx.createGain();
+
+  oscillator.connect(gainNode);
+  gainNode.connect(destination);
+
+  oscillator.type = "sine";
+  oscillator.frequency.value = frequency;
+
+  // Soft attack and release for a gentle sound
+  gainNode.gain.setValueAtTime(0, startTime);
+  gainNode.gain.linearRampToValueAtTime(1, startTime + 0.02);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+
+  oscillator.start(startTime);
+  oscillator.stop(startTime + duration + 0.1);
+}
 
 // State shape from service worker
 interface PublicState {
   serverConnected: boolean;
-  sessions: number;
+  sessionCount: number;
   working: number;
   waitingForInput: number;
   blocked: boolean;
   bypassActive: boolean;
+  finishedSessionId?: string;
+  finishedPrompt?: string;
 }
 
 // Track current state so we can re-render if modal gets removed
 let lastKnownState: PublicState | null = null;
 let shouldBeBlocked = false;
+let wasBlocked = false; // Track previous blocked state for sound
 let blockedDomains: string[] = [];
 let toastDismissed = false;
+let finishToastDismissed = false;
 
 // Load domains from storage
 function loadDomains(): Promise<string[]> {
@@ -68,51 +139,9 @@ function createModal(): void {
           <span id="status" style="color:#666;font-size:14px;font-family:Arial,Helvetica,sans-serif;">...</span>
         </div>
         <div id="hint" style="margin-top:24px;font-size:13px;color:#555;line-height:1.4;font-family:Arial,Helvetica,sans-serif;"></div>
-        <button id="bypass-btn" style="all:initial;margin-top:24px;padding:12px 24px;background:#333;border:1px solid #444;border-radius:8px;color:#888;font-family:Arial,Helvetica,sans-serif;font-size:13px;cursor:pointer;transition:all 0.2s;">
-          Give me 5 minutes (1x per day)
-        </button>
       </div>
     </div>
   `;
-
-  // Wire up bypass button
-  const bypassBtn = shadow.getElementById("bypass-btn");
-  if (bypassBtn) {
-    // Check if already used today
-    chrome.runtime.sendMessage({ type: "GET_BYPASS_STATUS" }, (status) => {
-      if (status?.usedToday) {
-        bypassBtn.textContent = "Bypass already used today";
-        (bypassBtn as HTMLButtonElement).disabled = true;
-        bypassBtn.style.opacity = "0.5";
-        bypassBtn.style.cursor = "not-allowed";
-      }
-    });
-
-    bypassBtn.addEventListener("click", () => {
-      chrome.runtime.sendMessage({ type: "ACTIVATE_BYPASS" }, (response) => {
-        if (response?.success) {
-          removeModal();
-        } else if (response?.reason) {
-          bypassBtn.textContent = response.reason;
-          (bypassBtn as HTMLButtonElement).disabled = true;
-          bypassBtn.style.opacity = "0.5";
-          bypassBtn.style.cursor = "not-allowed";
-        }
-      });
-    });
-
-    // Hover effect
-    bypassBtn.addEventListener("mouseenter", () => {
-      if (!(bypassBtn as HTMLButtonElement).disabled) {
-        bypassBtn.style.background = "#444";
-        bypassBtn.style.color = "#aaa";
-      }
-    });
-    bypassBtn.addEventListener("mouseleave", () => {
-      bypassBtn.style.background = "#333";
-      bypassBtn.style.color = "#888";
-    });
-  }
 
   // Mount to documentElement (html) instead of body - more resilient to React hydration
   document.documentElement.appendChild(container);
@@ -152,6 +181,55 @@ function showToast(): void {
 
 function removeToast(): void {
   getToast()?.remove();
+}
+
+function getFinishToast(): HTMLElement | null {
+  return document.getElementById(FINISH_TOAST_ID);
+}
+
+function showFinishToast(prompt?: string): void {
+  if (getFinishToast() || finishToastDismissed) return;
+
+  const container = document.createElement("div");
+  container.id = FINISH_TOAST_ID;
+  const shadow = container.attachShadow({ mode: "open" });
+
+  // Truncate prompt if too long
+  const displayPrompt = prompt
+    ? prompt.length > 60
+      ? prompt.slice(0, 60) + "..."
+      : prompt
+    : null;
+
+  shadow.innerHTML = `
+    <div style="all:initial;position:fixed;bottom:24px;right:24px;background:#1a1a1a;border:1px solid #22c55e33;border-radius:12px;padding:16px 20px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#fff;z-index:2147483647;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,0.4);-webkit-font-smoothing:antialiased;">
+      <div style="display:flex;align-items:flex-start;gap:12px;">
+        <span style="font-size:20px;line-height:1;">✓</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;color:#22c55e;margin-bottom:4px;">Claude finished</div>
+          ${displayPrompt ? `<div style="font-size:12px;color:#888;line-height:1.4;word-break:break-word;">${displayPrompt}</div>` : ""}
+        </div>
+        <button id="dismiss" style="all:initial;padding:4px;background:transparent;border:none;color:#666;cursor:pointer;font-size:18px;line-height:1;">×</button>
+      </div>
+    </div>
+  `;
+
+  const dismissBtn = shadow.getElementById("dismiss");
+  dismissBtn?.addEventListener("click", () => {
+    finishToastDismissed = true;
+    removeFinishToast();
+  });
+
+  // Auto-dismiss after 5 seconds
+  setTimeout(() => {
+    removeFinishToast();
+  }, 5000);
+
+  document.documentElement.appendChild(container);
+}
+
+function removeFinishToast(): void {
+  getFinishToast()?.remove();
 }
 
 // Watch for our modal being removed by the page and re-add it
@@ -196,7 +274,7 @@ function renderState(state: PublicState): void {
     setDotColor(dot, "red");
     status.textContent = "Server Offline";
     hint.innerHTML = `Run <span style="background:#2a2a2a;padding:2px 8px;border-radius:4px;font-family:ui-monospace,monospace;font-size:12px;">npx claude-blocker</span> to start`;
-  } else if (state.sessions === 0) {
+  } else if (state.sessionCount === 0) {
     message.textContent = "No Claude Code sessions detected.";
     setDotColor(dot, "green");
     status.textContent = "Waiting for Claude Code";
@@ -204,7 +282,7 @@ function renderState(state: PublicState): void {
   } else {
     message.textContent = "Your job finished!";
     setDotColor(dot, "green");
-    status.textContent = `${state.sessions} session${state.sessions > 1 ? "s" : ""} idle`;
+    status.textContent = `${state.sessionCount} session${state.sessionCount > 1 ? "s" : ""} idle`;
     hint.textContent = "Type a prompt in Claude Code to unblock";
   }
 }
@@ -229,8 +307,16 @@ function renderError(): void {
 function handleState(state: PublicState): void {
   lastKnownState = state;
 
+  // Handle finish notification (show toast and play sound) - even on non-blocked domains
+  if (state.finishedSessionId) {
+    showFinishToast(state.finishedPrompt);
+    playSound("finish");
+    finishToastDismissed = false; // Reset for next finish
+  }
+
   if (!isBlockedDomain()) {
     shouldBeBlocked = false;
+    wasBlocked = false;
     removeModal();
     removeToast();
     return;
@@ -246,11 +332,17 @@ function handleState(state: PublicState): void {
 
   // Show blocking modal when truly idle
   if (state.blocked) {
+    // Play block sound only when transitioning from unblocked to blocked
+    if (!wasBlocked && !state.bypassActive) {
+      playSound("block");
+    }
     shouldBeBlocked = true;
+    wasBlocked = true;
     createModal();
     renderState(state);
   } else {
     shouldBeBlocked = false;
+    wasBlocked = false;
     removeModal();
   }
 }

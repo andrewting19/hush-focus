@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Claude Blocker",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Block distracting websites unless Claude Code is actively running inference",
   "homepage_url": "https://github.com/t3-content/claude-blocker",
   "minimum_chrome_version": "116",
@@ -11,7 +11,7 @@
     "48": "icon-48.png",
     "128": "icon-128.png"
   },
-  "permissions": ["storage", "tabs"],
+  "permissions": ["storage", "tabs", "sidePanel"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "service-worker.global.js"
@@ -23,17 +23,15 @@
       "run_at": "document_start"
     }
   ],
+  "side_panel": {
+    "default_path": "sidebar.html"
+  },
   "action": {
-    "default_popup": "popup.html",
     "default_title": "Claude Blocker",
     "default_icon": {
       "16": "icon-16.png",
       "32": "icon-32.png",
       "48": "icon-48.png"
     }
-  },
-  "options_ui": {
-    "page": "options.html",
-    "open_in_tab": true
   }
 }

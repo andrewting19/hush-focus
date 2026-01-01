@@ -11,19 +11,39 @@ export interface HookPayload {
   tool_input?: Record<string, unknown>;
   cwd?: string;
   transcript_path?: string;
+  prompt?: string; // User's message (available on UserPromptSubmit)
 }
 
 // Session state tracked by server
 export interface Session {
   id: string;
-  status: "idle" | "working";
+  status: "idle" | "working" | "waiting_for_input";
   lastActivity: Date;
   cwd?: string;
+  gitRepo?: string; // Git repo name
+  lastPrompt?: string; // Last user prompt for this session
+}
+
+// Session data sent to extension (serialized)
+export interface SessionInfo {
+  id: string;
+  status: "idle" | "working" | "waiting_for_input";
+  cwd?: string;
+  gitRepo?: string;
+  lastPrompt?: string;
 }
 
 // WebSocket messages from server to extension
 export type ServerMessage =
-  | { type: "state"; blocked: boolean; sessions: number; working: number }
+  | {
+      type: "state";
+      blocked: boolean;
+      sessions: SessionInfo[];
+      working: number;
+      waitingForInput: number;
+      finishedSessionId?: string; // Session ID that just finished (for notifications)
+      finishedPrompt?: string; // Last prompt from the finished session
+    }
   | { type: "pong" };
 
 // WebSocket messages from extension to server

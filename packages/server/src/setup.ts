@@ -8,7 +8,9 @@ interface ClaudeSettings {
   [key: string]: unknown;
 }
 
-const HOOK_COMMAND = `curl -s -X POST http://localhost:${DEFAULT_PORT}/hook -H 'Content-Type: application/json' -d "$(cat)" > /dev/null 2>&1 &`;
+// Use payload=$(cat) to capture stdin first, then enrich with git info and send
+// The hook runs in the Claude Code session's cwd, so we can get git repo info directly
+const HOOK_COMMAND = `payload=$(cat); git_repo=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null); [ -n "$git_repo" ] && payload=$(echo "$payload" | sed 's/}$/,"git_repo":"'"$git_repo"'"}/'); curl -s -X POST http://\${CLAUDE_BLOCKER_HOST:-localhost}:${DEFAULT_PORT}/hook -H 'Content-Type: application/json' -d "$payload" > /dev/null 2>&1 &`;
 
 const HOOKS_CONFIG = {
   UserPromptSubmit: [
@@ -97,23 +99,27 @@ export function setupHooks(): void {
   writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
 
   console.log(`
-┌─────────────────────────────────────────────────┐
-│                                                 │
-│   Claude Blocker Setup Complete!                │
-│                                                 │
-│   Hooks configured in:                          │
+┌───────────────────────────────────────────────────────┐
+│                                                       │
+│   Claude Blocker Setup Complete!                      │
+│                                                       │
+│   Hooks configured in:                                │
 │   ${settingsPath}
-│                                                 │
-│   Configured hooks:                             │
-│   - UserPromptSubmit (work starting)            │
-│   - PreToolUse (tool executing)                 │
-│   - Stop (work finished)                        │
-│   - SessionStart (session began)                │
-│   - SessionEnd (session ended)                  │
-│                                                 │
-│   Next: Run 'npx claude-blocker' to start       │
-│                                                 │
-└─────────────────────────────────────────────────┘
+│                                                       │
+│   Configured hooks:                                   │
+│   - UserPromptSubmit (work starting)                  │
+│   - PreToolUse (tool executing)                       │
+│   - Stop (work finished)                              │
+│   - SessionStart (session began)                      │
+│   - SessionEnd (session ended)                        │
+│                                                       │
+│   Next: Run 'npx claude-blocker' to start             │
+│                                                       │
+│   Docker/Container Usage:                             │
+│   Set CLAUDE_BLOCKER_HOST=host.docker.internal        │
+│   in your container environment.                      │
+│                                                       │
+└───────────────────────────────────────────────────────┘
 `);
 }
 

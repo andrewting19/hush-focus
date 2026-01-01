@@ -5,21 +5,34 @@ const KEEPALIVE_INTERVAL = 20_000;
 const RECONNECT_BASE_DELAY = 1_000;
 const RECONNECT_MAX_DELAY = 30_000;
 
+// Session info from server
+interface SessionInfo {
+  id: string;
+  status: "idle" | "working" | "waiting_for_input";
+  cwd?: string;
+  lastPrompt?: string;
+}
+
 // The actual state - service worker is single source of truth
 interface State {
   serverConnected: boolean;
-  sessions: number;
+  sessions: SessionInfo[];
   working: number;
   waitingForInput: number;
   bypassUntil: number | null;
+  // Track for finish notifications
+  lastFinishedPrompt: string | null;
+  lastFinishedSessionId: string | null;
 }
 
 const state: State = {
   serverConnected: false,
-  sessions: 0,
+  sessions: [],
   working: 0,
   waitingForInput: 0,
   bypassUntil: null,
+  lastFinishedPrompt: null,
+  lastFinishedSessionId: null,
 };
 
 let websocket: WebSocket | null = null;
@@ -35,26 +48,40 @@ chrome.storage.sync.get(["bypassUntil"], (result) => {
 });
 
 // Compute derived state
-function getPublicState() {
+function getPublicState(includeFinish = false) {
   const bypassActive = state.bypassUntil !== null && state.bypassUntil > Date.now();
   // Don't block if waiting for input - only block when truly idle
   const isIdle = state.working === 0 && state.waitingForInput === 0;
   const shouldBlock = !bypassActive && (isIdle || !state.serverConnected);
 
-  return {
+  const publicState: Record<string, unknown> = {
     serverConnected: state.serverConnected,
-    sessions: state.sessions,
+    sessions: state.sessions, // Full session info array
+    sessionCount: state.sessions.length,
     working: state.working,
     waitingForInput: state.waitingForInput,
     blocked: shouldBlock,
     bypassActive,
     bypassUntil: state.bypassUntil,
   };
+
+  // Include finish notification info (one-time, cleared after broadcast)
+  if (includeFinish && state.lastFinishedSessionId) {
+    publicState.finishedSessionId = state.lastFinishedSessionId;
+    publicState.finishedPrompt = state.lastFinishedPrompt;
+    // Clear after including
+    state.lastFinishedSessionId = null;
+    state.lastFinishedPrompt = null;
+  }
+
+  return publicState;
 }
 
-// Broadcast current state to all tabs
-function broadcast() {
-  const publicState = getPublicState();
+// Broadcast current state to all tabs and extension pages (sidebar)
+function broadcast(includeFinish = false) {
+  const publicState = getPublicState(includeFinish);
+
+  // Send to content scripts in tabs
   chrome.tabs.query({}, (tabs) => {
     for (const tab of tabs) {
       if (tab.id) {
@@ -62,6 +89,9 @@ function broadcast() {
       }
     }
   });
+
+  // Send to extension pages (sidebar, popup, etc.)
+  chrome.runtime.sendMessage({ type: "STATE", ...publicState }).catch(() => {});
 }
 
 // WebSocket connection management
@@ -84,10 +114,18 @@ function connect() {
       try {
         const msg = JSON.parse(event.data);
         if (msg.type === "state") {
-          state.sessions = msg.sessions;
+          state.sessions = msg.sessions ?? [];
           state.working = msg.working;
           state.waitingForInput = msg.waitingForInput ?? 0;
-          broadcast();
+
+          // Capture finish notification from server
+          const hasFinish = msg.finishedSessionId !== undefined;
+          if (hasFinish) {
+            state.lastFinishedSessionId = msg.finishedSessionId;
+            state.lastFinishedPrompt = msg.finishedPrompt ?? null;
+          }
+
+          broadcast(hasFinish);
         }
       } catch {}
     };
@@ -177,6 +215,13 @@ setInterval(() => {
     broadcast();
   }
 }, 5000);
+
+// Open side panel when extension icon is clicked
+chrome.action.onClicked.addListener((tab) => {
+  if (tab.windowId) {
+    chrome.sidePanel.open({ windowId: tab.windowId });
+  }
+});
 
 // Start
 connect();

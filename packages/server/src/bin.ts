@@ -29,10 +29,11 @@ Usage:
   npx claude-blocker [options]
 
 Options:
-  --setup     Configure Claude Code hooks
-  --remove    Remove Claude Code hooks
-  --port      Server port (default: ${DEFAULT_PORT})
-  --help      Show this help message
+  --setup       Configure Claude Code hooks
+  --remove      Remove Claude Code hooks
+  --port        Server port (default: ${DEFAULT_PORT})
+  --skip-setup  Skip setup check (for Docker/headless)
+  --help        Show this help message
 
 Examples:
   npx claude-blocker            # Start the server (prompts for setup on first run)
@@ -69,8 +70,8 @@ async function main(): Promise<void> {
     }
   }
 
-  // Check if hooks are configured, prompt for setup if not
-  if (!areHooksConfigured()) {
+  // Check if hooks are configured, prompt for setup if not (unless --skip-setup)
+  if (!args.includes("--skip-setup") && !areHooksConfigured()) {
     console.log("Claude Blocker hooks are not configured yet.\n");
     const answer = await prompt("Would you like to set them up now? (Y/n) ");
     const normalized = answer.trim().toLowerCase();
