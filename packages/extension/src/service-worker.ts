@@ -5,6 +5,38 @@ const KEEPALIVE_INTERVAL = 20_000;
 const RECONNECT_BASE_DELAY = 1_000;
 const RECONNECT_MAX_DELAY = 30_000;
 
+// Offscreen document for audio playback
+let creatingOffscreen: Promise<void> | null = null;
+
+async function ensureOffscreenDocument(): Promise<void> {
+  const existingContexts = await chrome.runtime.getContexts({
+    contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT],
+  });
+
+  if (existingContexts.length > 0) {
+    return; // Already exists
+  }
+
+  if (creatingOffscreen) {
+    await creatingOffscreen;
+    return;
+  }
+
+  creatingOffscreen = chrome.offscreen.createDocument({
+    url: "offscreen.html",
+    reasons: [chrome.offscreen.Reason.AUDIO_PLAYBACK],
+    justification: "Playing notification sounds for Claude session events",
+  });
+
+  await creatingOffscreen;
+  creatingOffscreen = null;
+}
+
+async function playSound(type: "block" | "finish"): Promise<void> {
+  await ensureOffscreenDocument();
+  chrome.runtime.sendMessage({ type: "PLAY_SOUND", sound: type }).catch(() => {});
+}
+
 // Session info from server
 interface SessionInfo {
   id: string;
@@ -123,6 +155,8 @@ function connect() {
           if (hasFinish) {
             state.lastFinishedSessionId = msg.finishedSessionId;
             state.lastFinishedPrompt = msg.finishedPrompt ?? null;
+            // Play finish sound via offscreen document
+            playSound("finish");
           }
 
           broadcast(hasFinish);
@@ -175,6 +209,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "GET_STATE") {
     sendResponse(getPublicState());
     return true;
+  }
+
+  if (message.type === "PLAY_SOUND" && message.sound) {
+    playSound(message.sound);
+    return false;
   }
 
   if (message.type === "ACTIVATE_BYPASS") {

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsup src/service-worker.ts src/content-script.ts src/sidebar.ts --format iife --out-dir dist --clean && node scripts/generate-icons.mjs && cp src/sidebar.html src/sidebar.css manifest.json dist/",
+    "build": "tsup src/service-worker.ts src/content-script.ts src/sidebar.ts src/offscreen.ts --format iife --out-dir dist --clean && node scripts/generate-icons.mjs && cp src/sidebar.html src/sidebar.css src/offscreen.html manifest.json dist/",
     "dev": "pnpm build --watch",
     "typecheck": "tsc --noEmit",
     "pack": "node scripts/pack-crx.mjs",

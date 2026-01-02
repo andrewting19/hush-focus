@@ -5,70 +5,20 @@ const TOAST_ID = "hush-toast";
 const FINISH_TOAST_ID = "hush-finish-toast";
 const DEFAULT_DOMAINS = ["x.com", "youtube.com"];
 
-// ============================================
-// Sound utilities using Web Audio API
-// ============================================
-
-let audioContext: AudioContext | null = null;
-
-function getAudioContext(): AudioContext {
-  if (!audioContext) {
-    audioContext = new AudioContext();
-  }
-  return audioContext;
-}
-
-// Play refined notification sounds
-// type: "block" = gentle low hum (entering sanctuary)
-// type: "finish" = soft crystalline chime (work complete)
+// Play sounds via service worker (which uses offscreen document)
 function playSound(type: "block" | "finish"): void {
-  try {
-    const ctx = getAudioContext();
-    const now = ctx.currentTime;
-
-    // Create gain node for volume control
-    const masterGain = ctx.createGain();
-    masterGain.connect(ctx.destination);
-    masterGain.gain.value = 0.12; // Keep it subtle and refined
-
-    if (type === "block") {
-      // Warm, grounding two-note descent
-      playTone(ctx, masterGain, 392, now, 0.2); // G4
-      playTone(ctx, masterGain, 294, now + 0.15, 0.25); // D4
-    } else {
-      // Gentle ascending resolution
-      playTone(ctx, masterGain, 523, now, 0.15); // C5
-      playTone(ctx, masterGain, 659, now + 0.12, 0.15); // E5
-      playTone(ctx, masterGain, 784, now + 0.24, 0.22); // G5
-    }
-  } catch {
-    // Audio not available, fail silently
-  }
+  chrome.runtime.sendMessage({ type: "PLAY_SOUND", sound: type }).catch(() => {});
 }
 
-function playTone(
-  ctx: AudioContext,
-  destination: AudioNode,
-  frequency: number,
-  startTime: number,
-  duration: number
-): void {
-  const oscillator = ctx.createOscillator();
-  const gainNode = ctx.createGain();
-
-  oscillator.connect(gainNode);
-  gainNode.connect(destination);
-
-  oscillator.type = "sine";
-  oscillator.frequency.value = frequency;
-
-  // Soft attack and natural release
-  gainNode.gain.setValueAtTime(0, startTime);
-  gainNode.gain.linearRampToValueAtTime(0.8, startTime + 0.03);
-  gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-
-  oscillator.start(startTime);
-  oscillator.stop(startTime + duration + 0.1);
+// Pause all media elements on the page to stop content playing behind the overlay
+function pauseAllMedia(): void {
+  const mediaElements = document.querySelectorAll("video, audio");
+  mediaElements.forEach((el) => {
+    const media = el as HTMLMediaElement;
+    if (!media.paused) {
+      media.pause();
+    }
+  });
 }
 
 // State shape from service worker
@@ -160,7 +110,7 @@ function createModal(): void {
         align-items: center;
         justify-content: center;
         font-family: 'DM Sans', -apple-system, sans-serif;
-        z-index: 2147483647;
+        z-index: 2147483646;
         -webkit-font-smoothing: antialiased;
         overflow: hidden;
       }
@@ -540,6 +490,7 @@ function showFinishToast(prompt?: string): void {
         display: flex;
         align-items: flex-start;
         gap: 12px;
+        padding-right: 28px;
       }
 
       .icon {
@@ -745,6 +696,7 @@ function handleState(state: PublicState): void {
     // Play block sound only when transitioning from unblocked to blocked
     if (!wasBlocked && !state.bypassActive) {
       playSound("block");
+      pauseAllMedia();
     }
     shouldBeBlocked = true;
     wasBlocked = true;
