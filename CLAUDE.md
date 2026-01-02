@@ -1,6 +1,6 @@
-# Claude Blocker
+# HUSH — Focus Sanctuary
 
-A productivity tool that blocks distracting websites unless Claude Code is actively running inference.
+A productivity tool that silences distracting websites unless Claude Code is actively working.
 
 ## Project Structure
 
@@ -21,7 +21,7 @@ Claude Code → hooks → Server (localhost:8765) ← WebSocket → Chrome Exten
 
 1. **Claude Code hooks** (`~/.claude/settings.json`) send HTTP POST to `/hook` on session/tool events
 2. **Server** tracks session states (idle/working/waiting_for_input) and broadcasts via WebSocket
-3. **Extension** blocks configured domains when no session is "working"
+3. **Extension** silences configured domains when no session is "working"
 
 ## Key Files
 
@@ -34,8 +34,9 @@ Claude Code → hooks → Server (localhost:8765) ← WebSocket → Chrome Exten
 
 ### Extension (`packages/extension/`)
 - `src/service-worker.ts` - WebSocket connection, state sync, opens sidebar on click
-- `src/content-script.ts` - Modal overlay, blocking logic, sounds, toasts
+- `src/content-script.ts` - Sanctuary overlay, blocking logic, sounds, toasts
 - `src/sidebar.ts/html/css` - Side panel UI with sessions list and settings modal
+- `src/offscreen.ts/html` - Offscreen document for reliable Web Audio API playback
 - `manifest.json` - Chrome extension manifest v3 (uses Side Panel API)
 
 ### Shared (`packages/shared/`)
@@ -68,18 +69,20 @@ pnpm --filter @claude-blocker/extension zip
 
 ## Session States
 
-- `idle` - Claude not working (sites blocked)
-- `working` - Claude actively processing (sites unblocked)
-- `waiting_for_input` - Claude asked user a question (sites blocked)
+| State | Sites | Description |
+|-------|-------|-------------|
+| `idle` | Blocked | Claude not working — sites silenced |
+| `working` | Unblocked | Claude actively processing — sites accessible |
+| `waiting_for_input` | Unblocked | Claude asked a question — shows toast notification |
 
 ## Notifications
 
-- **Block sound** - Gentle descending chime (A5→E5) when site gets blocked
-- **Finish sound** - Pleasant ascending chime (C5→E5→G5) when Claude finishes responding
-- **Finish toast** - Shows "Claude finished" with truncated prompt context (auto-dismisses after 5s)
-- **Question toast** - Shows when Claude has a question for user
+- **Block sound** - Warm descending two-note chime (G4→D4) when site gets silenced
+- **Finish sound** - Gentle ascending resolution (C5→E5→G5) when Claude finishes responding
+- **Finish toast** - Shows "Complete" with truncated prompt context (auto-dismisses after 5s)
+- **Question toast** - Shows when Claude has a question for user (non-blocking)
 
-Sounds are generated using Web Audio API oscillators (sine waves) - no audio files needed. Volume is set to 15% for subtle, non-jarring alerts.
+Sounds are generated using Web Audio API oscillators (sine waves) via an offscreen document for reliable playback. Volume is set to 12% for subtle, refined alerts.
 
 ## Hook Events
 
@@ -108,14 +111,16 @@ Run `npx claude-blocker --setup` to automatically configure hooks, or `npx claud
 
 - **Side Panel UI** - Sessions list with settings modal accessible via gear icon
   - Main view shows active Claude Code sessions (git repo or folder name, status, last prompt)
-  - Settings modal contains blocked domains and emergency bypass
-- Soft block with modal overlay (no bypass option on overlay)
-- Emergency bypass available in settings (5 minutes, once per day)
-- Real-time state updates via WebSocket
-- Configurable blocked domains (synced via Chrome storage)
-- Default blocked: x.com, youtube.com
-- **Notification sounds** - Web Audio API generated chimes (no audio files needed)
+  - Settings modal contains silenced domains and emergency bypass
+- **Sanctuary overlay** - Full-screen blocking modal with HUSH branding (no bypass on overlay)
+- **Emergency Exit** - 5-minute bypass available in settings (once per day, resets at midnight)
+- **Real-time updates** - Instant state changes via WebSocket
+- **Configurable domains** - Synced via Chrome storage
+- **Default silenced**: x.com, youtube.com
+- **Notification sounds** - Web Audio API chimes via offscreen document
 - **Finish toasts** - Show last prompt when Claude finishes responding
+- **Media pause** - Automatically pauses video/audio when blocking activates
+- **Persistent blocking** - Mutation observer re-adds overlay if page tries to remove it
 
 ## Server Ports
 
