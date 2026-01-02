@@ -10,15 +10,79 @@ function playSound(type: "block" | "finish"): void {
   chrome.runtime.sendMessage({ type: "PLAY_SOUND", sound: type }).catch(() => {});
 }
 
+// Media blocking state
+let mediaObserver: MutationObserver | null = null;
+let mediaBlockingActive = false;
+
+// Pause a single media element
+function pauseMedia(media: HTMLMediaElement): void {
+  if (!media.paused) {
+    media.pause();
+  }
+}
+
 // Pause all media elements on the page to stop content playing behind the overlay
 function pauseAllMedia(): void {
   const mediaElements = document.querySelectorAll("video, audio");
   mediaElements.forEach((el) => {
-    const media = el as HTMLMediaElement;
-    if (!media.paused) {
-      media.pause();
+    pauseMedia(el as HTMLMediaElement);
+  });
+}
+
+// Handle play event - pause immediately if blocking is active
+function handleMediaPlay(event: Event): void {
+  if (!mediaBlockingActive) return;
+  const target = event.target as HTMLMediaElement;
+  if (target && (target.tagName === "VIDEO" || target.tagName === "AUDIO")) {
+    target.pause();
+  }
+}
+
+// Start watching for new media elements and play attempts
+function startMediaBlocking(): void {
+  if (mediaBlockingActive) return;
+  mediaBlockingActive = true;
+
+  // Pause any existing media
+  pauseAllMedia();
+
+  // Listen for play events on the document (capture phase to catch early)
+  document.addEventListener("play", handleMediaPlay, true);
+
+  // Watch for new media elements being added to the DOM
+  mediaObserver = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      mutation.addedNodes.forEach((node) => {
+        if (node instanceof HTMLElement) {
+          // Check if the node itself is a media element
+          if (node.tagName === "VIDEO" || node.tagName === "AUDIO") {
+            pauseMedia(node as HTMLMediaElement);
+          }
+          // Check for media elements within the added node
+          const mediaElements = node.querySelectorAll("video, audio");
+          mediaElements.forEach((el) => pauseMedia(el as HTMLMediaElement));
+        }
+      });
     }
   });
+
+  mediaObserver.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
+}
+
+// Stop watching for media elements
+function stopMediaBlocking(): void {
+  if (!mediaBlockingActive) return;
+  mediaBlockingActive = false;
+
+  document.removeEventListener("play", handleMediaPlay, true);
+
+  if (mediaObserver) {
+    mediaObserver.disconnect();
+    mediaObserver = null;
+  }
 }
 
 // State shape from service worker
@@ -680,6 +744,7 @@ function handleState(state: PublicState): void {
     wasBlocked = false;
     removeModal();
     removeToast();
+    stopMediaBlocking();
     return;
   }
 
@@ -696,8 +761,9 @@ function handleState(state: PublicState): void {
     // Play block sound only when transitioning from unblocked to blocked
     if (!wasBlocked && !state.bypassActive) {
       playSound("block");
-      pauseAllMedia();
     }
+    // Start media blocking (handles both initial pause and watching for new media)
+    startMediaBlocking();
     shouldBeBlocked = true;
     wasBlocked = true;
     createModal();
@@ -706,6 +772,7 @@ function handleState(state: PublicState): void {
     shouldBeBlocked = false;
     wasBlocked = false;
     removeModal();
+    stopMediaBlocking();
   }
 }
 
@@ -741,6 +808,8 @@ async function init(): Promise<void> {
 
   if (isBlockedDomain()) {
     setupMutationObserver();
+    // Start media blocking immediately - will be stopped if we learn blocking isn't needed
+    startMediaBlocking();
     createModal();
     requestState();
   }
