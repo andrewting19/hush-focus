@@ -319,7 +319,7 @@ function updateBypassButton(status: BypassStatus): void {
 
     updateCountdown();
     bypassCountdown = setInterval(updateCountdown, 1000);
-    bypassStatus.textContent = "Bypass active";
+    bypassStatus.textContent = "Lunch break active";
   } else if (status.usedToday) {
     bypassBtn.disabled = true;
     bypassBtn.classList.remove("active");
@@ -329,7 +329,7 @@ function updateBypassButton(status: BypassStatus): void {
     bypassBtn.disabled = false;
     bypassBtn.classList.remove("active");
     bypassText.textContent = "Activate";
-    bypassStatus.textContent = "5 minutes of freedom, once daily";
+    bypassStatus.textContent = "45 minutes to recharge, once daily";
   }
 }
 

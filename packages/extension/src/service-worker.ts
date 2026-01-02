@@ -223,7 +223,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         sendResponse({ success: false, reason: "Already used today" });
         return;
       }
-      state.bypassUntil = Date.now() + 5 * 60 * 1000;
+      state.bypassUntil = Date.now() + 45 * 60 * 1000; // 45 minutes
       chrome.storage.sync.set({ bypassUntil: state.bypassUntil, lastBypassDate: today });
       broadcast();
       sendResponse({ success: true });
