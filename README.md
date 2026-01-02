@@ -70,11 +70,11 @@ All sounds are generated using Web Audio API oscillators — no audio files need
 - **Status hero** — Visual indicator showing connection state (Offline/Quiet/Ready/Working/Waiting)
 - **Active sessions** — See all Claude Code instances, their status, and last prompt
 - **Metrics strip** — Sessions count, active count, and gate status at a glance
-- **Settings modal** — Manage silenced domains and emergency bypass
+- **Settings modal** — Manage silenced domains and lunch break bypass
 
-### Emergency Exit
+### Lunch Break
 
-- **5-minute bypass** — When you absolutely need access
+- **45-minute bypass** — Time to recharge when you need it
 - **Once per day** — Resets at midnight to prevent abuse
 - **Countdown timer** — Shows remaining bypass time in the UI
 

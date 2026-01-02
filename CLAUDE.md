@@ -111,9 +111,9 @@ Run `npx claude-blocker --setup` to automatically configure hooks, or `npx claud
 
 - **Side Panel UI** - Sessions list with settings modal accessible via gear icon
   - Main view shows active Claude Code sessions (git repo or folder name, status, last prompt)
-  - Settings modal contains silenced domains and emergency bypass
+  - Settings modal contains silenced domains and lunch break bypass
 - **Sanctuary overlay** - Full-screen blocking modal with HUSH branding (no bypass on overlay)
-- **Emergency Exit** - 5-minute bypass available in settings (once per day, resets at midnight)
+- **Lunch Break** - 45-minute bypass available in settings (once per day, resets at midnight)
 - **Real-time updates** - Instant state changes via WebSocket
 - **Configurable domains** - Synced via Chrome storage
 - **Default silenced**: x.com, youtube.com
